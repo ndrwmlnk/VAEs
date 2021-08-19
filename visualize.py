@@ -17,6 +17,8 @@ from model_vae import ConvVAE
 from model_sigma_vae import ConvSigmaVAE
 
 ## Arguments
+#The only important argument is image_number which regulates how many images are rendered out
+#all others are set automaitcally
 parser = argparse.ArgumentParser(description='VAE MNIST Example')
 parser.add_argument('--batch-size', type=int, default=1, metavar='N',
                     help='input batch size for training (default: 128)')
@@ -70,44 +72,51 @@ if __name__ == '__main__':
             test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, drop_last=True, **kwargs)
             #fill array with the original images
             for image_idx, data in enumerate(test_loader):
-                data = np.stack(data).reshape(args.image_size, args.image_size, 3).astype(dtype="int8")
-                image_orig = Image.fromarray(data, "RGB").resize((192, 192), Image.NEAREST)
-                if(model_idx == 0 and size_idx == 0):
-                    draw = ImageDraw.Draw(image_orig)
-                    font = ImageFont.truetype("arial.ttf", 20)
-                    draw.text((0, 165), "{:04d}".format(image_idx), (255, 255, 255), font=font)
-                image_orig = np.array(image_orig, dtype="int8")
-                x = (model_idx * 3 + size_idx) * 192
-                images[image_idx, x:(x+192), 0:192] = image_orig
+                if (image_idx < args.image_number):
+                    data = np.stack(data).reshape(args.image_size, args.image_size, 3).astype(dtype="int8")
+                    image_orig = Image.fromarray(data, "RGB").resize((192, 192), Image.NEAREST)
+                    if(model_idx == 0 and size_idx == 0):
+                        draw = ImageDraw.Draw(image_orig)
+                        font = ImageFont.truetype("arial.ttf", 20)
+                        draw.text((0, 165), "{:04d}".format(image_idx), (255, 255, 255), font=font)
+                    image_orig = np.array(image_orig, dtype="int8")
+                    x = (model_idx * 4 + size_idx) * 192
+                    images[image_idx, x:(x+192), 0:192] = image_orig
             for dim_idx, dim in enumerate([256, 128, 64, 32, 16, 8, 4, 2, 1]):
                 args.dim = dim
                 args.log_dir = "{}_{}x{}_D{}".format(args.model, args.image_size, args.image_size, args.dim)
                 print(args.log_dir)
                 ## Build Model
-                model = ConvAE(device, 3, args)
-                optimizer = optim.Adam(model.parameters(), lr=1e-3)
-                model.load_state_dict(torch.load("checkpoints_LR4_E10/checkpoint_{}.pt".format(args.log_dir)))
+                if (args.model == "ae"):
+                    model = ConvAE(device, 3, args).to(device)
+                if (args.model == "mse_vae"):
+                    model = ConvVAE(device, 3, args).to(device)
+                if (args.model == "optimal_sigma_vae"):
+                    model = ConvSigmaVAE(device, 3, args).to(device)
+                optimizer = optim.Adam(model.parameters(), lr=1e-4)
+                model.load_state_dict(torch.load("checkpoints/{}/checkpoint_{}.pt".format(args.model, args.log_dir)))
                 #fill array with reconstructions of model+size+dim
                 for image_idx, data in enumerate(test_loader):
-                    data = torch.Tensor((np.stack(data).reshape((args.batch_size, args.image_size, args.image_size, 3))) / 255).transpose(1, 2).transpose(1, 3)
-                    image_recon, mu, logvar = model(data)
-                    loss = torch.nn.MSELoss()(image_recon, data) * 100000
-                    loss = loss.detach().cpu().numpy().astype(np.dtype(np.int))
-                    image_recon = image_recon.detach().cpu().numpy()[0].transpose(1, 2, 0)
-                    image_recon = (image_recon * 255).astype(dtype="int8")
-                    img_temp = Image.fromarray(image_recon, "RGB").resize((192, 192), Image.NEAREST)
-                    draw = ImageDraw.Draw(img_temp)
-                    font = ImageFont.truetype("arial.ttf", 20)
-                    draw.text((0, 165), "{:04d}".format(loss), (255, 255, 255), font=font)
-                    img_temp = np.array(img_temp, dtype="int8")
-                    x = (model_idx * 3 + size_idx) * 192
-                    y = (dim_idx + 1) * 192
-                    images[image_idx, x:(x+192), y:(y+192)] = img_temp
+                    if(image_idx < args.image_number):
+                        data = torch.Tensor((np.stack(data).reshape((args.batch_size, args.image_size, args.image_size, 3))) / 255).transpose(1, 2).transpose(1, 3)
+                        image_recon, mu, logvar = model(data)
+                        loss = torch.nn.MSELoss()(image_recon, data) * 100000
+                        loss = loss.detach().cpu().numpy().astype(np.dtype(np.int))
+                        image_recon = image_recon.detach().cpu().numpy()[0].transpose(1, 2, 0)
+                        image_recon = (image_recon * 255).astype(dtype="int8")
+                        img_temp = Image.fromarray(image_recon, "RGB").resize((192, 192), Image.NEAREST)
+                        draw = ImageDraw.Draw(img_temp)
+                        font = ImageFont.truetype("arial.ttf", 20)
+                        draw.text((0, 165), "{:04d}".format(loss), (255, 255, 255), font=font)
+                        img_temp = np.array(img_temp, dtype="int8")
+                        x = (model_idx * 4 + size_idx) * 192
+                        y = (dim_idx + 1) * 192
+                        images[image_idx, x:(x+192), y:(y+192)] = img_temp
     #create images and save them
     os.makedirs('images', exist_ok=True)
     print("Save Images")
-    for idx in tqdm(range(5000)):
+    for idx in tqdm(range(args.image_number)):
         image = Image.fromarray(images[idx], "RGB")
         image = image.save("images/{:05d}.png".format(idx))
     #video out of the image folder
-    video("images/", "results_lr4.mp4")
+    video("images/", "result.avi")
