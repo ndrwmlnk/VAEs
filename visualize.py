@@ -55,8 +55,8 @@ def video(image_folder, video_name):
     video.release()
 
 if __name__ == '__main__':
-    images = np.zeros((args.image_number, 2304, 1920, 3), dtype="int8")#1728
-    for model_idx, model in enumerate(["optimal_sigma_vae", "mse_vae", "ae"]):
+    images = np.zeros((args.image_number, 192*8, 1920, 3), dtype="int8")#1728
+    for model_idx, model in enumerate(["optimal_sigma_vae", "ae"]):
         args.model = model
         for size_idx, size in enumerate([64, 16, 8, 16]):
             args.image_size = size
@@ -91,7 +91,7 @@ if __name__ == '__main__':
                     model = ConvAE(device, 3, args).to(device)
                 if (args.model == "mse_vae"):
                     model = ConvVAE(device, 3, args).to(device)
-                if (args.model == "optimal_sigma_vae"):
+                if (args.model == "optimal_sigma_vae" or args.model == "sigma_vae"):
                     model = ConvSigmaVAE(device, 3, args).to(device)
                 optimizer = optim.Adam(model.parameters(), lr=1e-4)
                 model.load_state_dict(torch.load("checkpoints/{}/checkpoint_{}.pt".format(args.model, args.log_dir)))

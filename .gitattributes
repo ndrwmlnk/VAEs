@@ -1,3 +1,4 @@
 checkpoints/ae/checkpoint_ae_64x64_D256.pt filter=lfs diff=lfs merge=lfs -text
 checkpoints/mse_vae/checkpoint_mse_vae_64x64_D256.pt filter=lfs diff=lfs merge=lfs -text
 checkpoints/optimal_sigma_vae/checkpoint_optimal_sigma_vae_64x64_D256.pt filter=lfs diff=lfs merge=lfs -text
+checkpoints/sigma_vae/checkpoint_sigma_vae_64x64_D256.pt filter=lfs diff=lfs merge=lfs -text

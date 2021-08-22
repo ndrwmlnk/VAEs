@@ -86,10 +86,7 @@ class ConvSigmaVAE(nn.Module):
         
     def encode(self, x):
         h = self.encoder(x)
-        if (self.model == "ae"):
-            return self.fc11(h)
-        else:
-            return self.fc11(h), self.fc12(h)
+        return self.fc11(h), self.fc12(h)
     
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -100,13 +97,8 @@ class ConvSigmaVAE(nn.Module):
         return self.decoder(self.fc2(z))
     
     def forward(self, x):
-        if(self.model == "ae"):
-            z = self.encode(x)
-            mu = 0.0
-            logvar = 0.0
-        else:
-            mu, logvar = self.encode(x)
-            z = self.reparameterize(mu, logvar)
+        mu, logvar = self.encode(x)
+        z = self.reparameterize(mu, logvar)
         return self.decode(z), mu, logvar
     
     def sample(self, n):
@@ -140,7 +132,7 @@ class ConvSigmaVAE(nn.Module):
     def loss_function(self, recon_x, x, mu, logvar):
         # Important: both reconstruction and KL divergence loss have to be summed over all element!
         # Here we also sum the over batch and divide by the number of elements in the data later
-        if (self.model == 'mse_vae' or self.model == 'ae'):
+        if (self.model == 'mse_vae'):
             rec = torch.nn.MSELoss()(recon_x, x)
         else:
             rec = self.reconstruction_loss(recon_x, x)
@@ -149,10 +141,8 @@ class ConvSigmaVAE(nn.Module):
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
         # https://arxiv.org/abs/1312.6114
         # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
-        if (self.model != "ae"):
-            kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-            return rec, kl
-        return rec, 0
+        kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        return rec, kl
 
 
 def gaussian_nll(mu, log_sigma, x):
